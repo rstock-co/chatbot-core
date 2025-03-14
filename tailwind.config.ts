@@ -1,4 +1,7 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+// @ts-ignore - No types available for this module
+import assistantUITailwind from "@assistant-ui/react/tailwindcss";
 
 const config = {
   darkMode: ["class"],
@@ -57,8 +60,11 @@ const config = {
         },
       },
     },
-    plugins: ['require("tailwindcss-animate")'],
   },
+  plugins: [
+    tailwindcssAnimate,
+    assistantUITailwind
+  ],
 } satisfies Config;
 
 export default config;
