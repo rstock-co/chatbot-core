@@ -6,6 +6,17 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 /**
+ * This component provides a guided multi-step interaction flow.
+ *
+ * While this component is not directly provided by Assistant UI, it:
+ * 1. Uses the design tokens from the Assistant UI Tailwind theme
+ * 2. Follows the styling patterns established by Assistant UI components
+ * 3. Can be used alongside Assistant UI's tool system using makeAssistantToolUI
+ *
+ * This component is part of the core abstraction layer built on top of Assistant UI.
+ */
+
+/**
  * Props for the StepContent component
  */
 export interface StepContentProps<T> {

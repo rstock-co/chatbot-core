@@ -2,7 +2,8 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Combines multiple class names and merges Tailwind classes efficiently
+ * Utility function to merge class names with Tailwind CSS
+ * This matches the pattern used in shadcn/ui and Assistant UI
  */
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));

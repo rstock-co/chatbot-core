@@ -3,6 +3,22 @@
 import { useState, useEffect, useCallback } from 'react';
 
 /**
+ * This hook provides state persistence for chat applications.
+ *
+ * Note: While Assistant UI handles runtime state management during a session,
+ * it doesn't directly provide persistent storage across page refreshes.
+ * This hook fills that gap by providing a way to save and restore state.
+ *
+ * It complements Assistant UI's runtime state management and can be used to persist:
+ * - User preferences
+ * - Conversation history
+ * - Tool state
+ *
+ * This hook is part of the core abstraction layer that extends Assistant UI
+ * without duplicating its functionality.
+ */
+
+/**
  * Configuration for chat state persistence
  */
 export interface ChatStatePersistenceConfig<T> {

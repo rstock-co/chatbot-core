@@ -1,201 +1,133 @@
 "use client";
 
-import React from 'react';
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-/**
- * Generic search result item
- */
-export interface SearchResultItem {
+export interface SearchResult {
   id: string;
   title: string;
   description?: string;
   imageUrl?: string;
-  [key: string]: unknown;
+  metadata?: Record<string, unknown>;
 }
 
-/**
- * Configuration for creating a search tool
- */
-interface SearchToolConfig<T extends SearchResultItem, P extends Record<string, unknown>> {
+export interface SearchToolConfig<T extends SearchResult = SearchResult> {
   /**
-   * Name of the tool
+   * The name of the search tool, which will be used in the UI and for the Assistant to call it
    */
   toolName: string;
 
   /**
-   * Component to render a search result item
+   * Function to perform the actual search
+   * @param query The search query provided by the assistant
+   * @returns Promise resolving to an array of search results
    */
-  renderResultItem?: (props: {
-    item: T;
-    isSelected: boolean;
-    onSelect: (item: T) => void;
-  }) => React.ReactNode;
+  searchFunction: (query: string) => Promise<T[]>;
 
   /**
-   * Component to render when loading
+   * Custom renderer for search results (optional)
+   * If not provided, a default renderer will be used
    */
-  renderLoading?: () => React.ReactNode;
+  renderResults?: (results: T[]) => React.ReactNode;
 
   /**
-   * Component to render when no results
+   * Custom renderer for a single search result (optional)
+   * If not provided, a default renderer will be used
    */
-  renderEmpty?: (props: { query: string }) => React.ReactNode;
-
-  /**
-   * Search implementation function
-   */
-  performSearch: (query: string, params: P) => Promise<T[]>;
+  renderResult?: (result: T) => React.ReactNode;
 }
 
 /**
- * Creates a reusable search tool by composing AssistantUI's makeAssistantToolUI
- * Styled to match the application's design system
+ * Creates a search tool that can be used with the Assistant UI
+ * This is a lightweight abstraction over makeAssistantToolUI that provides
+ * sensible defaults for search-related tools
  */
-export function createSearchTool<T extends SearchResultItem, P extends Record<string, unknown> = Record<string, unknown>>({
+export function createSearchTool<T extends SearchResult = SearchResult>({
   toolName,
-  renderResultItem,
-  renderLoading,
-  renderEmpty,
-  performSearch
-}: SearchToolConfig<T, P>) {
-  // Return a tool UI component using AssistantUI's makeAssistantToolUI
-  return makeAssistantToolUI<
-    { query: string } & P,
-    { selectedItem?: T }
-  >({
+  searchFunction,
+  renderResults,
+  renderResult,
+}: SearchToolConfig<T>) {
+  return makeAssistantToolUI<{ query: string }, T[]>({
     toolName,
-    render: ({ args, result, addResult }) => {
-      // Create a rendering component that uses hooks properly
-      const SearchResults = () => {
-        // Track selected item
-        const [selectedItem, setSelectedItem] = React.useState<T | null>(null);
+    render: function SearchTool({ args, addResult }) {
+      const { query } = args as { query: string };
+      const [results, setResults] = React.useState<T[]>([]);
+      const [loading, setLoading] = React.useState(true);
+      const [error, setError] = React.useState<string | null>(null);
 
-        // Track search results
-        const [results, setResults] = React.useState<T[]>([]);
-        const [isLoading, setIsLoading] = React.useState(true);
-
-        // Handle selection
-        const handleSelect = (item: T) => {
-          setSelectedItem(item);
-          addResult({ selectedItem: item });
+      React.useEffect(() => {
+        const fetchResults = async () => {
+          try {
+            setLoading(true);
+            const searchResults = await searchFunction(query);
+            setResults(searchResults);
+            addResult(searchResults); // Pass results back to the assistant
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Search failed");
+          } finally {
+            setLoading(false);
+          }
         };
 
-        // Call the search implementation
-        React.useEffect(() => {
-          let isMounted = true;
+        fetchResults();
+      }, [query, addResult]);
 
-          const doSearch = async () => {
-            setIsLoading(true);
-            try {
-              // Extract the query and other args
-              const { query, ...searchParams } = args;
-              const searchResults = await performSearch(query, searchParams as P);
-
-              if (isMounted) {
-                setResults(searchResults);
-                setIsLoading(false);
-              }
-            } catch (error) {
-              if (isMounted) {
-                console.error('Search failed:', error);
-                setResults([]);
-                setIsLoading(false);
-              }
-            }
-          };
-
-          doSearch();
-
-          return () => {
-            isMounted = false;
-          };
-        }, [args]);
-
-        // If we have a result, show it
-        if (result?.selectedItem) {
-          return (
-            <div className="rounded-lg border bg-card p-4 shadow-sm">
-              <p className="font-medium text-primary">Selected: {result.selectedItem.title}</p>
-            </div>
-          );
-        }
-
-        // Loading state
-        if (isLoading) {
-          if (renderLoading) {
-            return renderLoading();
-          }
-
-          return (
-            <div className="rounded-lg border bg-card p-4 shadow-sm">
-              <p>Searching for &quot;{args.query}&quot;...</p>
-              <div className="mt-2 animate-pulse h-4 bg-muted rounded w-3/4"></div>
-              <div className="mt-1 animate-pulse h-4 bg-muted rounded w-1/2"></div>
-            </div>
-          );
-        }
-
-        // Empty state
-        if (results.length === 0) {
-          if (renderEmpty) {
-            return renderEmpty({ query: args.query });
-          }
-
-          return (
-            <div className="rounded-lg border bg-card p-4 shadow-sm">
-              <p className="text-muted-foreground">No results found for &quot;{args.query}&quot;</p>
-            </div>
-          );
-        }
-
-        // Results
+      // Show loading state
+      if (loading) {
         return (
-          <div className="rounded-lg border bg-card p-4 shadow-sm">
-            <h3 className="font-medium mb-2">Results for &quot;{args.query}&quot;</h3>
-            <div className="space-y-2">
-              {results.map(item => {
-                const isSelected = selectedItem?.id === item.id;
-
-                // Use custom item renderer if provided
-                if (renderResultItem) {
-                  return (
-                    <React.Fragment key={item.id}>
-                      {renderResultItem({
-                        item,
-                        isSelected,
-                        onSelect: handleSelect
-                      })}
-                    </React.Fragment>
-                  );
-                }
-
-                // Default item renderer
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "p-3 border rounded cursor-pointer transition-colors",
-                      isSelected
-                        ? "bg-primary/10 border-primary/30"
-                        : "hover:bg-muted/50"
-                    )}
-                    onClick={() => handleSelect(item)}
-                  >
-                    <h4 className="font-medium">{item.title}</h4>
-                    {item.description && (
-                      <p className="text-sm text-muted-foreground">{item.description}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+            <span className="ml-2">Searching for: {query}</span>
           </div>
         );
-      };
+      }
 
-      return <SearchResults />;
-    }
+      // Show error state
+      if (error) {
+        return (
+          <div className="text-red-500 py-2">
+            Error: {error}
+          </div>
+        );
+      }
+
+      // Show results using custom renderer if provided
+      if (renderResults) {
+        return renderResults(results);
+      }
+
+      // Default results renderer
+      return (
+        <div className="space-y-4 py-2">
+          <h3 className="text-sm font-medium">Search results for: {query}</h3>
+          {results.length === 0 ? (
+            <p className="text-gray-500">No results found</p>
+          ) : (
+            <div className="grid gap-3">
+              {results.map((result) => (
+                <div key={result.id} className="border rounded-lg p-3">
+                  {renderResult ? (
+                    renderResult(result)
+                  ) : (
+                    <>
+                      <h4 className="font-medium">{result.title}</h4>
+                      {result.description && <p className="text-sm text-gray-500">{result.description}</p>}
+                      {result.imageUrl && (
+                        <img
+                          src={result.imageUrl}
+                          alt={result.title}
+                          className="mt-2 rounded-md max-h-32 object-cover"
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    },
   });
 }

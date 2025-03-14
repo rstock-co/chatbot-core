@@ -135,6 +135,25 @@ A lightweight, domain-agnostic framework for building powerful conversational in
 
 This core framework provides a set of abstractions and utilities that make it easier to build domain-specific chatbot applications without reimplementing common patterns. It composes (rather than rebuilds) the functionality from the Assistant UI library, adding thin abstraction layers that are useful for various domain applications.
 
+## How This Framework Uses Assistant UI
+
+This framework **does not duplicate** Assistant UI functionality. Instead, it:
+
+1. **Directly Uses Assistant UI Components** where available:
+   - Uses `ThreadPrimitive`, `MessagePrimitive`, and `ComposerPrimitive` for chat interfaces
+   - Uses `makeAssistantToolUI` for creating tool UIs
+   - Uses `useLocalRuntime` and `AssistantRuntimeProvider` for the chatbot runtime
+
+2. **Extends with Complementary Components** where Assistant UI doesn't provide them:
+   - Adds persistence layer with `useChatStatePersistence`
+   - Adds guided interaction flows with `useGuidedFlow` and `GuidedInteraction`
+   - Adds common tool patterns with `createSearchTool` and `createInterviewTool`
+
+3. **Maintains Styling Consistency** with the Assistant UI theme:
+   - Uses the same color tokens and variables
+   - Follows the same component design patterns
+   - Components look and feel like native Assistant UI components
+
 ## Key Features
 
 - **Simplified Runtime Provider**: A streamlined setup for the Assistant UI runtime
@@ -147,7 +166,7 @@ This core framework provides a set of abstractions and utilities that make it ea
 
 All components in this core package are styled to match the Assistant UI design system:
 
-- Uses the same color tokens and theme variables
+- Uses the same color tokens and theme variables (primary, secondary, muted, etc.)
 - Consistent spacing, typography, and border styles
 - Seamless visual integration with Assistant UI components
 
@@ -293,3 +312,210 @@ To start using this core framework in your project:
 ## License
 
 MIT
+
+# Assistant UI Core Package
+
+This package provides a thin abstraction layer on top of Assistant UI, offering domain-agnostic components and hooks that simplify implementation of AI assistants while fully leveraging the official Assistant UI framework.
+
+## Overview
+
+This core package:
+- Composes and extends Assistant UI's components and hooks
+- Provides domain-agnostic abstractions that simplify common patterns
+- Follows functional programming principles
+- Maintains compatibility with Assistant UI's design system
+
+## Core Components
+
+### CoreRuntimeProvider
+
+A simplified runtime provider that wraps Assistant UI's `AssistantRuntimeProvider`:
+
+```tsx
+import { CoreRuntimeProvider } from '@/lib/core/CoreRuntimeProvider';
+
+export default function ChatPage() {
+  return (
+    <CoreRuntimeProvider
+      endpoint="/api/assistant"
+      systemInstructions="You are a helpful assistant."
+    >
+      <CoreThread />
+    </CoreRuntimeProvider>
+  );
+}
+```
+
+### CoreThread and CoreMessage
+
+Domain-agnostic thread components that use Assistant UI primitives:
+
+```tsx
+import { CoreThread } from '@/components/core/CoreThread';
+
+export default function ChatInterface() {
+  return (
+    <CoreThread
+      className="h-full"
+      composerPlaceholder="Type a message..."
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const message = formData.get('message') as string;
+        // Process message
+      }}
+    />
+  );
+}
+```
+
+## Tool Abstractions
+
+### createInterviewTool
+
+Create domain-agnostic interview/questionnaire tools:
+
+```tsx
+import { createInterviewTool } from '@/lib/tools/createInterviewTool';
+
+// Define your questions
+const questions = [
+  { id: 'name', question: 'What is your name?' },
+  { id: 'age', question: 'How old are you?' }
+];
+
+// Create the interview tool
+const ProfileCollectionTool = createInterviewTool({
+  toolName: 'collect_profile_info',
+  renderQuestions: ({ questions, onComplete }) => (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      onComplete({
+        name: formData.get('name'),
+        age: formData.get('age'),
+      });
+    }}>
+      {questions.map(q => (
+        <div key={q.id}>
+          <label>{q.question}</label>
+          <input name={q.id} />
+        </div>
+      ))}
+      <button type="submit">Submit</button>
+    </form>
+  )
+});
+```
+
+### createSearchTool
+
+Create domain-agnostic search tools:
+
+```tsx
+import { createSearchTool } from '@/lib/tools/createSearchTool';
+
+// Create the search tool
+const ProductSearchTool = createSearchTool({
+  toolName: 'search_products',
+  searchFunction: async (query) => {
+    // Implement your search logic
+    const response = await fetch(`/api/products?q=${query}`);
+    const data = await response.json();
+    return data.products.map(p => ({
+      id: p.id,
+      title: p.name,
+      description: p.description,
+      imageUrl: p.image,
+      metadata: { price: p.price }
+    }));
+  }
+});
+```
+
+## Hooks and Utilities
+
+### useGuidedFlow
+
+A custom hook for creating multi-step guided interactions:
+
+```tsx
+import { useGuidedFlow } from '@/lib/interactions/useGuidedFlow';
+
+function MultiStepForm() {
+  const {
+    currentStep,
+    data,
+    updateData,
+    goToNextStep,
+    goToPreviousStep,
+    error,
+    isFirstStep,
+    isLastStep,
+    progress
+  } = useGuidedFlow({
+    steps: [
+      {
+        id: 'personal',
+        title: 'Personal Information',
+        validate: (data) => {
+          if (!data.name) return 'Name is required';
+          return undefined;
+        }
+      },
+      {
+        id: 'preferences',
+        title: 'Your Preferences',
+      }
+    ],
+    onComplete: (data) => {
+      console.log('Flow completed with data:', data);
+    }
+  });
+
+  return (
+    <div>
+      <h2>{currentStep.title}</h2>
+      <ProgressBar value={progress} />
+
+      {currentStep.id === 'personal' && (
+        <input
+          value={data.name || ''}
+          onChange={e => updateData({ name: e.target.value })}
+        />
+      )}
+
+      {error && <p className="text-red-500">{error}</p>}
+
+      <div className="flex gap-2">
+        {!isFirstStep && (
+          <button onClick={goToPreviousStep}>Back</button>
+        )}
+
+        {!isLastStep ? (
+          <button onClick={goToNextStep}>Next</button>
+        ) : (
+          <button onClick={complete}>Finish</button>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## Extending the Core Package
+
+This package is designed to be extended for domain-specific use cases. When building upon it:
+
+1. Use the provided abstractions rather than creating custom implementations
+2. For domain-specific features, create separate components that utilize these abstractions
+3. Maintain compatibility with the Assistant UI's design system
+4. Follow functional programming principles
+
+## Requirements
+
+- Next.js 13+ (App Router)
+- React 18+
+- TypeScript 4.9+
+- Assistant UI package
+- Tailwind CSS
