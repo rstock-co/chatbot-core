@@ -126,3 +126,170 @@ npm install
 # Run the development server
 npm run dev
 ```
+
+# Chatbot Core Framework
+
+A lightweight, domain-agnostic framework for building powerful conversational interfaces on top of the Assistant UI library.
+
+## Overview
+
+This core framework provides a set of abstractions and utilities that make it easier to build domain-specific chatbot applications without reimplementing common patterns. It composes (rather than rebuilds) the functionality from the Assistant UI library, adding thin abstraction layers that are useful for various domain applications.
+
+## Key Features
+
+- **Simplified Runtime Provider**: A streamlined setup for the Assistant UI runtime
+- **Tool Pattern Abstractions**: Reusable patterns for common tool types like interviews and search
+- **State Management**: Persistent state for chat sessions
+- **Guided Interactions**: Framework for multi-step guided flows
+- **Consistent Styling**: Components that seamlessly integrate with the Assistant UI design system
+
+## Styling and Design System
+
+All components in this core package are styled to match the Assistant UI design system:
+
+- Uses the same color tokens and theme variables
+- Consistent spacing, typography, and border styles
+- Seamless visual integration with Assistant UI components
+
+The styling leverages the Assistant UI Tailwind plugin, ensuring that all components maintain the same design language across your application.
+
+## Core Abstractions
+
+### Runtime Provider
+
+The `CoreRuntimeProvider` wraps the Assistant UI's runtime with simplifications:
+
+```tsx
+import { CoreRuntimeProvider } from 'lib/core/CoreRuntimeProvider';
+
+function App() {
+  return (
+    <CoreRuntimeProvider
+      endpoint="/api/assistant"
+      systemInstructions="You are a helpful assistant."
+      onError={(error) => console.error(error)}
+    >
+      <YourChatInterface />
+    </CoreRuntimeProvider>
+  );
+}
+```
+
+### Tool Patterns
+
+#### Interview Tools
+
+Easily create tools for guided interviews or preference collection:
+
+```tsx
+import { createInterviewTool } from 'lib/tools/createInterviewTool';
+
+const PreferenceCollectionTool = createInterviewTool({
+  toolName: "collect_preferences",
+  renderQuestions: (props) => {
+    // Render your custom interview questions
+    return <YourQuestionUI {...props} />;
+  },
+  onComplete: (results) => {
+    // Handle the collected data
+    console.log(results);
+  }
+});
+```
+
+#### Search Tools
+
+Create search interfaces with minimal boilerplate:
+
+```tsx
+import { createSearchTool } from 'lib/tools/createSearchTool';
+
+const ProductSearchTool = createSearchTool({
+  toolName: "search_products",
+  performSearch: async (query, params) => {
+    // Implement your search logic
+    const response = await fetch(`/api/search?q=${query}`);
+    return await response.json();
+  }
+});
+```
+
+### State Management
+
+Persist chat state with minimal effort:
+
+```tsx
+import { useChatStatePersistence } from 'lib/hooks/useChatStatePersistence';
+
+function ChatComponent() {
+  const {
+    state,
+    setState,
+    resetState,
+    clearState,
+    hasPersistedState
+  } = useChatStatePersistence({
+    stateId: "user-123-chat",
+    initialState: { messages: [] }
+  });
+
+  // Use state in your component
+}
+```
+
+### Guided Interactions
+
+Create multi-step flows easily:
+
+```tsx
+import { GuidedInteraction } from 'components/GuidedInteraction';
+
+function PreferenceWizard() {
+  return (
+    <GuidedInteraction
+      title="Tell us your preferences"
+      steps={[
+        {
+          id: "step1",
+          title: "Basic Information",
+          content: ({ data, updateData }) => (
+            <BasicInfoForm
+              data={data}
+              onUpdate={updateData}
+            />
+          )
+        },
+        // Additional steps...
+      ]}
+      onComplete={(data) => {
+        // Handle completion
+      }}
+    />
+  );
+}
+```
+
+## Integration with Assistant UI
+
+All abstractions in this core package are designed to work seamlessly with the Assistant UI library. They leverage the built-in hooks and components while adding domain-agnostic patterns that make it easier to build specific applications.
+
+## Design Philosophy
+
+1. **Compose, Don't Rebuild**: We extend Assistant UI's functionality without duplicating it
+2. **Thin Abstractions**: Keep abstractions lightweight and focused
+3. **Domain-Agnostic**: All patterns work across domains (travel, healthcare, finance, etc.)
+4. **Functional Approach**: Prefer functional patterns over class-based designs
+5. **Visual Consistency**: Maintain the same design language as Assistant UI
+
+## Getting Started
+
+To start using this core framework in your project:
+
+1. Set up your chatbot UI using the `CoreRuntimeProvider`
+2. Create domain-specific tools using our tool abstractions
+3. Manage state with the persistence hooks
+4. Build guided flows using our interaction components
+
+## License
+
+MIT
